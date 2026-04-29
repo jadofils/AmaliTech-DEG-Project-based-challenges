@@ -1,0 +1,6 @@
+target/
+.env
+.git
+.gitignore
+*.md
+test-*.js
