@@ -26,7 +26,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/monitors")
 @RequiredArgsConstructor
-@Tag(name = "Monitor Management", description = "Dead Man's Switch API — register devices, send heartbeats, and receive alerts when a device stops responding. Each monitor starts a countdown timer. If no heartbeat is received before the timer expires, an alert is fired automatically.")
+@Tag(name = "Monitor Management", description = "Dead Man's Switch API — register devices, send heartbeats, and receive alerts when a device stops responding. Each monitor starts a countdown timer. If no heartbeat is received before the timer expires, an alert is fired automatically. Features intelligent alert deduplication with a circuit breaker to prevent alert fatigue in unstable connectivity environments.")
 public class MonitorController {
     
     private final MonitorService monitorService;

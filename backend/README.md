@@ -840,32 +840,71 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 
 ### Intelligent Alert Deduplication with Circuit Breaker
 
-**Problem:** In environments with unstable connectivity, a device may go offline and recover repeatedly. A standard dead man's switch would fire an alert on every failure, flooding the on-call engineer with hundreds of notifications per hour — a problem known as alert fatigue.
+**Why this was added:**
+In environments with unstable connectivity — solar farms, remote weather stations, IoT sensors — a device may go offline and recover repeatedly within a short period. A standard dead man's switch fires an alert on every single failure. This floods the on-call engineer with hundreds of notifications per hour, a well-known problem called **alert fatigue**. Engineers start ignoring alerts, which defeats the entire purpose of the monitoring system.
 
-**Solution:** An alert deduplication layer with a circuit breaker pattern that limits repeated alerts for the same device within a rolling time window.
+**This is not AI.** It is a rule-based circuit breaker algorithm — a proven pattern from distributed systems engineering. No machine learning is involved. It makes decisions purely based on alert count and time elapsed since the last alert.
 
-**How It Works:**
+**It does not need its own endpoint.** The logic runs internally inside `AlertService` every time a timer expires. It is completely transparent to the device. The device just stops sending heartbeats — the system decides intelligently whether to fire an alert or suppress it.
+
+**How it works:**
 
 ```java
-if (monitor.getAlertCount() == 0) {
+// First failure: alert immediately
+if (alertCount == 0) {
     sendImmediateAlert();
-} else if (timeSinceLastAlert > 1 hour) {
+}
+// Cooldown passed (>60 min since last alert): reset and alert again
+else if (minutesSinceLastAlert > 60) {
     sendAlert();
-} else if (alertCount < 3) {
+}
+// Within the hour but under the cap: alert with backoff
+else if (alertCount < 3) {
     sendAlertWithBackoff();
-} else {
-    circuitBreakerOpen();
+}
+// Circuit breaker open: suppress alert, log warning
+else {
+    log.warn("Circuit breaker ENGAGED - alert suppressed");
 }
 ```
 
-**Impact:**
+**Impact in real scenarios:**
 
 | Scenario | Without Feature | With Feature |
 |---|---|---|
 | Flaky connection | 100+ alerts per hour | 3 alerts maximum |
 | Extended outage | Alert every 60 seconds | Alert once, then quiet |
 | Maintenance window | False alarms | Paused, no alerts |
-| After recovery | Manual cleanup | Auto-resume |
+| After 1 hour cooldown | Still flooding | Circuit resets, alerts resume |
+| After recovery | Manual cleanup needed | Auto-resume on heartbeat |
+
+**What the alert payload includes:**
+
+```json
+{
+  "ALERT": "Device solar-panel-001 is down!",
+  "time": "2024-01-15T10:32:00",
+  "device_id": "solar-panel-001",
+  "alert_email": "admin@critmon.com",
+  "type": "timeout",
+  "timeout_seconds": 60,
+  "last_heartbeat": "2024-01-15T10:31:00",
+  "alert_count": 2,
+  "circuit_breaker_status": "CLOSED"
+}
+```
+
+When the circuit breaker engages, the log shows:
+
+```
+WARN - Circuit breaker ENGAGED for device: solar-panel-001 - too many alerts (3 in last hour)
+```
+
+When the cooldown passes and the circuit resets:
+
+```
+INFO - Circuit breaker RESET for device: solar-panel-001 - cooldown period passed
+```
 
 ---
 
