@@ -10,13 +10,13 @@
 
 ### Base URL
 
-# https://amalitech-deg-project-based-challenges-9f5j.onrender.com
+# https://amalitech-deg-project-based-challenges-y05i.onrender.com
 
 | Link | Description |
 |---|---|
-| **[Health Check](https://amalitech-deg-project-based-challenges-9f5j.onrender.com/api/monitors/health)** | `GET /api/monitors/health` — Verify the API is running |
-| **[Swagger UI](https://amalitech-deg-project-based-challenges-9f5j.onrender.com/swagger-ui/index.html)** | Interactive API documentation and testing |
-| **[OpenAPI Docs](https://amalitech-deg-project-based-challenges-9f5j.onrender.com/api-docs)** | Raw OpenAPI JSON specification |
+| **[Health Check](https://amalitech-deg-project-based-challenges-y05i.onrender.com/api/monitors/health)** | `GET /api/monitors/health` — Verify the API is running |
+| **[Swagger UI](https://amalitech-deg-project-based-challenges-y05i.onrender.com/swagger-ui/index.html)** | Interactive API documentation and testing |
+| **[OpenAPI Docs](https://amalitech-deg-project-based-challenges-y05i.onrender.com/api-docs)** | Raw OpenAPI JSON specification |
 
 </div>
 
@@ -128,11 +128,11 @@ curl http://localhost:8080/api/monitors/health
 
 ## API Documentation
 
-**Base URL:** `https://amalitech-deg-project-based-challenges-9f5j.onrender.com/api`
+**Base URL:** `https://amalitech-deg-project-based-challenges-y05i.onrender.com/api`
 
 **Local URL:** `http://localhost:8080/api`
 
-**Swagger UI (Live):** [https://amalitech-deg-project-based-challenges-9f5j.onrender.com/swagger-ui/index.html](https://amalitech-deg-project-based-challenges-9f5j.onrender.com/swagger-ui/index.html)
+**Swagger UI (Live):** [https://amalitech-deg-project-based-challenges-y05i.onrender.com/swagger-ui/index.html](https://amalitech-deg-project-based-challenges-y05i.onrender.com/swagger-ui/index.html)
 
 **Swagger UI (Local):** `http://localhost:8080/swagger-ui/index.html`
 
