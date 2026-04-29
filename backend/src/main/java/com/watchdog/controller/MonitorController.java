@@ -68,7 +68,10 @@ public class MonitorController {
     @GetMapping("/{id}/status")
     @Operation(
         summary = "Get monitor status",
-        description = "Returns the current state of a monitor including status (ACTIVE, PAUSED, DOWN), time remaining before alert, last heartbeat timestamp, and total alert count."
+        description = "Returns the current state of a monitor. Possible states:\n\n" +
+            "**ACTIVE** - The device is being monitored. The countdown timer is running. Every heartbeat resets it back to the full timeout. If no heartbeat arrives before the timer hits zero, the system automatically transitions to DOWN and fires an alert.\n\n" +
+            "**PAUSED** - The timer is stopped. No alerts will fire regardless of how long the device stays silent. This is used during planned maintenance. The monitor stays PAUSED until a heartbeat is received, which auto-resumes it back to ACTIVE.\n\n" +
+            "**DOWN** - The timer expired with no heartbeat received. An alert has already been fired. The device needs attention. You cannot send heartbeats to a DOWN monitor - you must delete it and re-register to start monitoring again."
     )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Status retrieved successfully"),

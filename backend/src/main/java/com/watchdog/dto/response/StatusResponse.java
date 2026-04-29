@@ -12,7 +12,7 @@ public class StatusResponse {
     private String id;
     private MonitorStatus status;
     private int timeout;
-    private long timeRemaining;
+    private Long timeRemaining;
     private LocalDateTime lastHeartbeat;
     private LocalDateTime createdAt;
     private int alertCount;

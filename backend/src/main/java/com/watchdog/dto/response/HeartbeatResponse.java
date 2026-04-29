@@ -1,9 +1,10 @@
+// dto/response/HeartbeatResponse.java
 package com.watchdog.dto.response;
+
+import java.time.LocalDateTime;
 
 import lombok.Builder;
 import lombok.Data;
-
-import java.time.LocalDateTime;
 
 @Data
 @Builder

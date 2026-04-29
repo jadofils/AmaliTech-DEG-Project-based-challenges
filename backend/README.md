@@ -515,6 +515,12 @@ GET /monitors/weather-station-042/status
 | `PAUSED` | Timer stopped, no alerts will fire |
 | `DOWN` | Timer expired, alert was triggered, device needs attention |
 
+**ACTIVE** means the device is alive and the countdown is ticking. Every heartbeat resets the timer back to the full timeout value. As long as heartbeats keep arriving before the timer hits zero, the monitor stays ACTIVE indefinitely.
+
+**PAUSED** means a maintenance technician has manually stopped the timer using the pause endpoint. The device can go completely silent without triggering any alert. The monitor stays PAUSED until a heartbeat is received, at which point it automatically transitions back to ACTIVE and the timer restarts.
+
+**DOWN** means the timer ran out with no heartbeat received. The system has already fired an alert to the configured email and webhook. The device is considered offline and needs physical inspection or repair. A DOWN monitor cannot accept heartbeats — you must delete it and re-register the device to resume monitoring.
+
 ---
 
 ### 4. Pause Monitoring
@@ -645,7 +651,122 @@ GET /monitors?status=DOWN&page=0&size=10
 
 ---
 
-### 8. Health Check
+### 9. Get Audit Logs for a Device
+
+Returns the full history of every action performed on a specific monitor — creation, heartbeats, pauses, resumes, deletes, and alerts — ordered from most recent to oldest. Use this to investigate why a device went DOWN or how many times it has been paused.
+
+```
+GET /api/audit/monitors/{id}
+```
+
+**Test examples:**
+
+```
+GET /api/audit/monitors/solar-panel-001
+GET /api/audit/monitors/weather-station-042
+```
+
+**Response `200 OK`:**
+
+```json
+[
+  {
+    "id": 5,
+    "monitorId": "solar-panel-001",
+    "action": "HEARTBEAT",
+    "timestamp": "2024-01-15T10:31:00",
+    "details": "{\"timeRemaining\":60}"
+  },
+  {
+    "id": 1,
+    "monitorId": "solar-panel-001",
+    "action": "CREATE",
+    "timestamp": "2024-01-15T10:30:00",
+    "details": "{\"timeout\":60,\"alertEmail\":\"admin@critmon.com\"}"
+  }
+]
+```
+
+---
+
+### 10. Get Paginated Audit Logs for a Device
+
+Same as above but paginated. Use this for devices with long histories.
+
+```
+GET /api/audit/monitors/{id}/paged?page=0&size=20
+```
+
+---
+
+### 11. Get Audit Logs by Action Type
+
+Returns all audit entries for a specific action type across all devices. Useful for finding every device that has ever triggered an alert, or every device that was paused.
+
+```
+GET /api/audit/action/{action}
+```
+
+**Valid action values:**
+
+| Action | When it is logged |
+|---|---|
+| `CREATE` | A new monitor is registered |
+| `HEARTBEAT` | A device sends a heartbeat |
+| `ALERT` | A timer expires and an alert fires |
+| `PAUSE` | A monitor is paused |
+| `RESUME` | A monitor is resumed |
+| `DELETE` | A monitor is deleted |
+
+**Test examples:**
+
+```
+GET /api/audit/action/ALERT
+GET /api/audit/action/HEARTBEAT
+GET /api/audit/action/CREATE
+```
+
+**Response `200 OK`:**
+
+```json
+[
+  {
+    "id": 8,
+    "monitorId": "wind-turbine-007",
+    "action": "ALERT",
+    "timestamp": "2024-01-15T10:35:00",
+    "details": "{\"ALERT\":\"Device wind-turbine-007 is down!\",\"alert_count\":1}"
+  }
+]
+```
+
+---
+
+### 12. Get All Audit Logs
+
+Returns a paginated system-wide activity feed across all devices. Use this for compliance reporting or a global dashboard.
+
+```
+GET /api/audit?page=0&size=20
+```
+
+**Response `200 OK`:**
+
+```json
+{
+  "content": [
+    {
+      "id": 10,
+      "monitorId": "iot-sensor-lab-3",
+      "action": "PAUSE",
+      "timestamp": "2024-01-15T10:40:00",
+      "details": "{\"previousStatus\":\"ACTIVE\"}"
+    }
+  ],
+  "totalElements": 10,
+  "totalPages": 1
+}
+```
 
 Returns the current health of the API. Use this to verify the server is running, the database is connected, and to see how many timers are currently active in memory.
 
@@ -664,6 +785,62 @@ GET /monitors/health
   "database": "connected"
 }
 ```
+
+---
+
+### 13. Delete Audit Logs for a Device
+
+Permanently deletes all audit log entries for a specific device. Use this when decommissioning a device.
+
+```
+DELETE /api/audit/monitors/{id}
+```
+
+**Response `200 OK`:**
+
+```json
+{ "deleted": 12, "monitorId": "solar-panel-001" }
+```
+
+---
+
+### 14. Delete Audit Logs by Action Type
+
+Deletes all entries of a specific action type across all devices.
+
+```
+DELETE /api/audit/action/{action}
+```
+
+**Response `200 OK`:**
+
+```json
+{ "deleted": 5, "action": "HEARTBEAT" }
+```
+
+---
+
+### 15. Delete Audit Logs Older Than N Days
+
+Deletes all entries older than the given number of days. The system also runs this automatically every day at 3 AM for logs older than 30 days.
+
+```
+DELETE /api/audit/older-than/{days}
+```
+
+**Test example** — delete logs older than 7 days:
+
+```
+DELETE /api/audit/older-than/7
+```
+
+**Response `200 OK`:**
+
+```json
+{ "deleted": 43, "olderThanDays": 7 }
+```
+
+> **Auto-cleanup:** The scheduler runs this automatically every day at 3 AM for logs older than 30 days. No manual action needed for routine housekeeping.
 
 ---
 

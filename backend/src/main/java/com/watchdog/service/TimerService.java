@@ -6,83 +6,85 @@ import com.watchdog.repository.MonitorRepository;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TimerService {
 
     private final MonitorRepository monitorRepository;
     private final AlertService alertService;
 
-    @Value("${timer.thread.pool.size:10}")
-    private int threadPoolSize;
-
-    @Value("${timer.shutdown.timeout.seconds:30}")
-    private int shutdownTimeout;
-
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
-    private final Map<String, ScheduledFuture<?>> timers = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ScheduledFuture<?>> activeTimers = new ConcurrentHashMap<>();
+    private final AtomicLong timerCount = new AtomicLong(0);
 
-    public void startTimer(String id, int timeoutSeconds) {
-        cancelTimer(id);
-        ScheduledFuture<?> future = scheduler.schedule(
-                () -> processExpiredMonitor(id),
-                timeoutSeconds,
-                TimeUnit.SECONDS
-        );
-        timers.put(id, future);
-        log.debug("Timer started for device: {} ({}s)", id, timeoutSeconds);
+    public void startTimer(String deviceId, int timeoutSeconds) {
+        cancelTimer(deviceId);
+        ScheduledFuture<?> future = scheduler.schedule(() -> {
+            log.warn("Timer expired for device: {}", deviceId);
+            processExpiredMonitor(deviceId);
+            activeTimers.remove(deviceId);
+            timerCount.decrementAndGet();
+        }, timeoutSeconds, TimeUnit.SECONDS);
+        activeTimers.put(deviceId, future);
+        timerCount.incrementAndGet();
+        log.debug("Timer started for device: {} ({}s)", deviceId, timeoutSeconds);
     }
 
-    public void resetTimer(String id, int timeoutSeconds) {
-        startTimer(id, timeoutSeconds);
-        log.debug("Timer reset for device: {}", id);
+    public void resetTimer(String deviceId, int timeoutSeconds) {
+        startTimer(deviceId, timeoutSeconds);
+        log.debug("Timer reset for device: {}", deviceId);
     }
 
-    public void cancelTimer(String id) {
-        ScheduledFuture<?> existing = timers.remove(id);
-        if (existing != null && !existing.isDone()) {
-            existing.cancel(false);
-            log.debug("Timer cancelled for device: {}", id);
+    public void cancelTimer(String deviceId) {
+        ScheduledFuture<?> future = activeTimers.remove(deviceId);
+        if (future != null && !future.isDone()) {
+            future.cancel(false);
+            timerCount.decrementAndGet();
+            log.debug("Timer cancelled for device: {}", deviceId);
         }
     }
 
-    public long getTimeRemaining(String id, int timeoutSeconds) {
-        ScheduledFuture<?> future = timers.get(id);
+    public long getTimeRemaining(String deviceId) {
+        ScheduledFuture<?> future = activeTimers.get(deviceId);
         if (future == null || future.isDone()) return 0;
         return future.getDelay(TimeUnit.SECONDS);
     }
 
-    public int getActiveTimerCount() {
-        return (int) timers.values().stream().filter(f -> !f.isDone()).count();
+    public boolean isTimerActive(String deviceId) {
+        return activeTimers.containsKey(deviceId);
     }
 
-    private void processExpiredMonitor(String id) {
-        monitorRepository.findById(id).ifPresent(monitor -> {
+    public long getActiveTimerCount() {
+        return timerCount.get();
+    }
+
+    private void processExpiredMonitor(String deviceId) {
+        monitorRepository.findById(deviceId).ifPresent(monitor -> {
             if (monitor.getStatus() == MonitorStatus.ACTIVE) {
                 monitor.setStatus(MonitorStatus.DOWN);
                 monitor.setAlertCount(monitor.getAlertCount() + 1);
                 monitor.setAlertTriggeredAt(LocalDateTime.now());
                 monitorRepository.save(monitor);
                 alertService.sendAlert(monitor);
-                log.error("Monitor expired: device {} is DOWN", id);
+                log.error("Device {} is DOWN", deviceId);
             }
         });
-        timers.remove(id);
     }
 
     @PreDestroy
     public void shutdown() {
+        log.info("Shutting down TimerService. Active timers: {}", activeTimers.size());
+        activeTimers.keySet().forEach(this::cancelTimer);
         scheduler.shutdown();
         try {
-            if (!scheduler.awaitTermination(shutdownTimeout, TimeUnit.SECONDS)) {
+            if (!scheduler.awaitTermination(30, TimeUnit.SECONDS)) {
                 scheduler.shutdownNow();
             }
         } catch (InterruptedException e) {
