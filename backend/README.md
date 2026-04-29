@@ -325,13 +325,13 @@ curl http://localhost:8080/api/monitors/health
 
 **Base URL:** `http://localhost:8080/api`
 
-**Interactive Docs:** `http://localhost:8080/swagger-ui.html`
+**Interactive Docs:** `http://localhost:8080/swagger-ui/index.html`
 
 ---
 
 ### 1. Create Monitor
 
-Registers a new device for heartbeat monitoring.
+Registers a new device for heartbeat monitoring. Once created, the countdown timer starts immediately. If no heartbeat is received before the timeout expires, an alert is fired and the monitor status changes to `DOWN`. The device ID must be unique — attempting to register the same ID twice returns a `409 Conflict`.
 
 ```
 POST /monitors
@@ -340,21 +340,50 @@ Content-Type: application/json
 
 **Request Body:**
 
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | yes | Unique device identifier (3-100 chars, letters/numbers/hyphens/underscores) |
+| `timeout` | integer | yes | Seconds before alert fires (10 - 86400) |
+| `alert_email` | string | yes | Email address to notify on alert |
+| `alert_webhook` | string | no | HTTP endpoint to POST alert payload to |
+
+**Test examples:**
+
 ```json
 {
   "id": "solar-panel-001",
   "timeout": 60,
   "alert_email": "admin@critmon.com",
-  "alert_webhook": "https://your-slack-webhook.com"
+  "alert_webhook": ""
 }
 ```
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `id` | string | yes | Unique device identifier (3-100 chars) |
-| `timeout` | integer | yes | Alert timeout in seconds (10 - 86400) |
-| `alert_email` | string | yes | Where to send alerts |
-| `alert_webhook` | string | no | HTTP endpoint for alert webhooks |
+```json
+{
+  "id": "weather-station-042",
+  "timeout": 120,
+  "alert_email": "ops@critmon.com",
+  "alert_webhook": ""
+}
+```
+
+```json
+{
+  "id": "wind-turbine-007",
+  "timeout": 30,
+  "alert_email": "engineer@critmon.com",
+  "alert_webhook": ""
+}
+```
+
+```json
+{
+  "id": "iot-sensor-lab-3",
+  "timeout": 300,
+  "alert_email": "support@critmon.com",
+  "alert_webhook": ""
+}
+```
 
 **Response `201 Created`:**
 
@@ -370,7 +399,7 @@ Content-Type: application/json
 }
 ```
 
-**Error `400 Bad Request`:**
+**Error `400 Bad Request`** — validation failed:
 
 ```json
 {
@@ -384,7 +413,7 @@ Content-Type: application/json
 }
 ```
 
-**Error `409 Conflict`:**
+**Error `409 Conflict`** — device already registered:
 
 ```json
 {
@@ -399,10 +428,19 @@ Content-Type: application/json
 
 ### 2. Send Heartbeat
 
-Resets the countdown timer for a device.
+Proves the device is still alive by resetting the countdown timer back to the full timeout value. Call this endpoint from your device on a regular interval shorter than the timeout. If the monitor is `PAUSED`, sending a heartbeat automatically resumes it. If the monitor is `DOWN`, you must delete and re-register it.
 
 ```
 POST /monitors/{id}/heartbeat
+```
+
+**Test examples** — use the IDs registered above:
+
+```
+POST /monitors/solar-panel-001/heartbeat
+POST /monitors/weather-station-042/heartbeat
+POST /monitors/wind-turbine-007/heartbeat
+POST /monitors/iot-sensor-lab-3/heartbeat
 ```
 
 **Response `200 OK`:**
@@ -412,26 +450,25 @@ POST /monitors/{id}/heartbeat
   "deviceId": "solar-panel-001",
   "message": "Heartbeat received - timer reset",
   "timeRemaining": 60,
+  "resumed": false,
   "timestamp": "2024-01-15T10:31:00"
 }
 ```
 
-**Error `404 Not Found`:**
+**Error `404 Not Found`** — device not registered:
 
 ```json
 {
-  "timestamp": "2024-01-15T10:32:00",
   "status": 404,
   "error": "Not Found",
   "message": "Monitor not found for device: solar-panel-001"
 }
 ```
 
-**Error `410 Gone`:**
+**Error `410 Gone`** — device is DOWN, must re-register:
 
 ```json
 {
-  "timestamp": "2024-01-15T10:32:00",
   "status": 410,
   "error": "Gone",
   "message": "Monitor is expired. Create a new monitor to resume tracking."
@@ -442,10 +479,17 @@ POST /monitors/{id}/heartbeat
 
 ### 3. Get Monitor Status
 
-Retrieves the current status of a monitor.
+Returns the full current state of a monitor. Use this to check whether a device is alive, how much time is left before an alert fires, and how many alerts have been triggered historically.
 
 ```
 GET /monitors/{id}/status
+```
+
+**Test examples:**
+
+```
+GET /monitors/solar-panel-001/status
+GET /monitors/weather-station-042/status
 ```
 
 **Response `200 OK`:**
@@ -465,42 +509,81 @@ GET /monitors/{id}/status
 
 **Status Values:**
 
-| Status | Description |
+| Status | Meaning |
 |---|---|
-| `ACTIVE` | Monitoring normally, timer running |
-| `PAUSED` | Monitoring paused for maintenance |
-| `DOWN` | Device missed heartbeat, alert triggered |
+| `ACTIVE` | Timer is running, device is being monitored |
+| `PAUSED` | Timer stopped, no alerts will fire |
+| `DOWN` | Timer expired, alert was triggered, device needs attention |
 
 ---
 
 ### 4. Pause Monitoring
 
-Temporarily stops monitoring without triggering alerts.
+Stops the countdown timer without triggering an alert. Use this when you are doing planned maintenance on a device and do not want false alarms. The monitor stays `PAUSED` indefinitely until a heartbeat is received, which auto-resumes it.
 
 ```
 POST /monitors/{id}/pause
+```
+
+**Test examples:**
+
+```
+POST /monitors/wind-turbine-007/pause
+POST /monitors/iot-sensor-lab-3/pause
 ```
 
 **Response `200 OK`:**
 
 ```json
 {
-  "id": "solar-panel-001",
+  "id": "wind-turbine-007",
   "status": "PAUSED",
-  "message": "Monitor paused. Send a heartbeat to auto-resume."
+  "message": "Monitor paused successfully. Send heartbeat to resume."
 }
 ```
 
-> **Note:** To resume, simply send a heartbeat. The monitor auto-transitions back to `ACTIVE`.
+> To resume: simply send a heartbeat to the paused device. It auto-transitions back to `ACTIVE`.
 
 ---
 
-### 5. Delete Monitor
+### 5. Resume Monitoring
 
-Permanently removes a monitor from the system.
+Manually resumes a `PAUSED` monitor and restarts the countdown timer. Sending a heartbeat also resumes automatically — this endpoint is for cases where you want to resume without counting as a heartbeat.
+
+```
+POST /monitors/{id}/resume
+```
+
+**Test example:**
+
+```
+POST /monitors/wind-turbine-007/resume
+```
+
+**Response `200 OK`:**
+
+```json
+{
+  "id": "wind-turbine-007",
+  "status": "ACTIVE",
+  "message": "Monitor resumed successfully"
+}
+```
+
+---
+
+### 6. Delete Monitor
+
+Permanently removes a monitor and cancels its timer. Use this when a device is decommissioned. This action cannot be undone — you must re-register the device to monitor it again.
 
 ```
 DELETE /monitors/{id}
+```
+
+**Test example:**
+
+```
+DELETE /monitors/solar-panel-001
 ```
 
 **Response `200 OK`:**
@@ -513,12 +596,12 @@ DELETE /monitors/{id}
 
 ---
 
-### 6. List All Monitors
+### 7. List All Monitors
 
-Retrieves all monitors with optional filtering and pagination.
+Returns a paginated list of all monitors. Filter by status to see only active, paused, or down devices. Useful for building dashboards or bulk status checks.
 
 ```
-GET /monitors?status=ACTIVE&page=0&size=20&sortBy=createdAt&sortDir=desc
+GET /monitors?status=ACTIVE&page=0&size=20&sortBy=createdAt&direction=desc
 ```
 
 | Parameter | Default | Description |
@@ -527,7 +610,15 @@ GET /monitors?status=ACTIVE&page=0&size=20&sortBy=createdAt&sortDir=desc
 | `page` | `0` | Page number (0-indexed) |
 | `size` | `20` | Items per page |
 | `sortBy` | `createdAt` | Field to sort by |
-| `sortDir` | `desc` | `asc` or `desc` |
+| `direction` | `desc` | `asc` or `desc` |
+
+**Test examples:**
+
+```
+GET /monitors
+GET /monitors?status=ACTIVE
+GET /monitors?status=DOWN&page=0&size=10
+```
 
 **Response `200 OK`:**
 
@@ -547,14 +638,16 @@ GET /monitors?status=ACTIVE&page=0&size=20&sortBy=createdAt&sortDir=desc
     "pageNumber": 0,
     "pageSize": 20
   },
-  "totalElements": 1,
+  "totalElements": 4,
   "totalPages": 1
 }
 ```
 
 ---
 
-### 7. Health Check
+### 8. Health Check
+
+Returns the current health of the API. Use this to verify the server is running, the database is connected, and to see how many timers are currently active in memory.
 
 ```
 GET /monitors/health
@@ -567,7 +660,7 @@ GET /monitors/health
   "status": "healthy",
   "timestamp": "2024-01-15T10:30:00",
   "service": "watchdog-sentinel",
-  "activeTimers": 42,
+  "activeTimers": 4,
   "database": "connected"
 }
 ```
