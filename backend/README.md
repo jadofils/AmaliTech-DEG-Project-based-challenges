@@ -17,8 +17,6 @@
 | **[Health Check](https://amalitech-deg-project-based-challenges-9f5j.onrender.com/api/monitors/health)** | `GET /api/monitors/health` — Verify the API is running |
 | **[Swagger UI](https://amalitech-deg-project-based-challenges-9f5j.onrender.com/swagger-ui/index.html)** | Interactive API documentation and testing |
 | **[OpenAPI Docs](https://amalitech-deg-project-based-challenges-9f5j.onrender.com/api-docs)** | Raw OpenAPI JSON specification |
-| **[All Monitors](https://amalitech-deg-project-based-challenges-9f5j.onrender.com/api/monitors)** | `GET /api/monitors` — List all registered monitors |
-| **[All Audit Logs](https://amalitech-deg-project-based-challenges-9f5j.onrender.com/api/audit)** | `GET /api/audit` — System-wide audit trail |
 
 </div>
 
