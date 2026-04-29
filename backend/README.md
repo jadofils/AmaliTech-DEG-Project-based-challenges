@@ -12,7 +12,10 @@
 - [API Documentation](#api-documentation)
 - [Project Structure](#project-structure)
 - [Development](#development)
-- [Deployment](#deployment)
+- [DevOps](#devops)
+  - [Docker](#docker)
+  - [CI/CD with GitHub Actions](#cicd-with-github-actions)
+  - [Deployment](#deployment)
 - [The Developer's Choice Feature](#the-developers-choice-feature)
 - [Monitoring and Observability](#monitoring-and-observability)
 - [Troubleshooting](#troubleshooting)
@@ -918,6 +921,130 @@ java -jar target/watchdog-sentinel-1.0.0.jar
 
 ---
 
+## DevOps
+
+This project uses Docker for containerization and GitHub Actions for automated CI/CD. Every push to the repository triggers a build and test pipeline. On success, a Docker image is built and pushed to Docker Hub automatically.
+
+---
+
+## Docker
+
+The application is fully containerized using a multi-stage Dockerfile. The first stage builds the JAR using JDK 21, and the second stage runs it using a lightweight JRE 21 Alpine image to keep the final image size small.
+
+**Dockerfile stages:**
+
+```dockerfile
+# Stage 1 - Build
+FROM eclipse-temurin:21-jdk-alpine AS build
+WORKDIR /app
+COPY mvnw . && COPY .mvn .mvn && COPY pom.xml .
+RUN ./mvnw dependency:go-offline -B
+COPY src ./src
+RUN ./mvnw clean package -DskipTests
+
+# Stage 2 - Run
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+```
+
+**Build and run manually:**
+
+```bash
+# Build the image
+docker build -t watchdog-sentinel:latest .
+
+# Run the container
+docker run -d \
+  --name watchdog-sentinel \
+  -p 8080:8080 \
+  -e DB_PASSWORD=your_db_password \
+  watchdog-sentinel:latest
+```
+
+**Run with Docker Compose:**
+
+The `compose.yaml` file defines the full application stack. It loads credentials from `.env` and includes a health check on `/api/monitors/health`.
+
+```bash
+# Start
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop
+docker-compose down
+```
+
+**compose.yaml overview:**
+
+```yaml
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:8080/api/monitors/health"]
+      interval: 30s
+      retries: 3
+```
+
+---
+
+## CI/CD with GitHub Actions
+
+The pipeline is defined in `.github/workflows/ci-cd.yml` and runs automatically on every push to `feature/watchdog-api` and `main`, and on every pull request targeting `main`.
+
+**Pipeline flow:**
+
+```mermaid
+flowchart LR
+    Push[Git Push] --> Checkout[Checkout Code]
+    Checkout --> JDK[Setup JDK 21]
+    JDK --> Build[mvn clean package]
+    Build --> Test[mvn test]
+    Test -->|pass| Docker[Build Docker Image]
+    Test -->|fail| Stop[Pipeline Fails]
+    Docker --> Push2[Push to Docker Hub]
+    Push2 --> Done[Deployment Ready]
+
+    style Test fill:#e8f5e9,stroke:#2e7d32
+    style Stop fill:#ffebee,stroke:#c62828
+    style Done fill:#e8f5e9,stroke:#2e7d32
+```
+
+**Job 1 — Build and Test** (runs on every push):
+- Checks out the code
+- Sets up JDK 21 with Maven cache
+- Builds the project with `mvn clean package`
+- Runs all tests with DB credentials from GitHub Secrets
+- Uploads the JAR as a build artifact
+
+**Job 2 — Docker Build** (runs only after Job 1 passes):
+- Builds the Docker image using the multi-stage Dockerfile
+- Pushes two tags to Docker Hub:
+  - `latest` — always points to the most recent build
+  - `<git-sha>` — immutable tag for rollback
+
+**Required GitHub Secrets:**
+
+Go to your repository → `Settings` → `Secrets and variables` → `Actions` and add:
+
+| Secret | Description |
+|---|---|
+| `DB_PASSWORD` | PostgreSQL password for Neon DB |
+| `SPRING_DATASOURCE_URL` | Full JDBC connection URL |
+| `DOCKER_USERNAME` | Your Docker Hub username |
+| `DOCKER_PASSWORD` | Your Docker Hub password or access token |
+
+---
+
 ## Deployment
 
 ### Environment Variables
@@ -931,66 +1058,19 @@ java -jar target/watchdog-sentinel-1.0.0.jar
 | `ALERT_WEBHOOK_URL` | Default webhook URL | none |
 | `LOG_LEVEL` | Logging level | `INFO` |
 
-### Docker Deployment
+### Run from Docker Hub
 
-**1. Build the image:**
-
-```bash
-docker build -t watchdog-sentinel:latest .
-```
-
-**2. Run with Docker:**
+Once the CI/CD pipeline pushes the image, anyone can run it with:
 
 ```bash
+docker pull jadofils/watchdog-sentinel:latest
+
 docker run -d \
   --name watchdog-sentinel \
   -p 8080:8080 \
-  -e DB_PASSWORD=your_db_password \
+  -e DB_PASSWORD=your_password \
   -e SPRING_DATASOURCE_URL=jdbc:postgresql://your-db-host/neondb?sslmode=require \
-  -e PORT=8080 \
-  watchdog-sentinel:latest
-```
-
-**3. Run with Docker Compose:**
-
-Create a `docker-compose.yml` at the project root:
-
-```yaml
-version: '3.8'
-
-services:
-  app:
-    build: .
-    container_name: watchdog-sentinel
-    ports:
-      - "8080:8080"
-    environment:
-      - DB_PASSWORD=${DB_PASSWORD}
-      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
-      - PORT=8080
-      - LOG_LEVEL=INFO
-    env_file:
-      - .env
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/monitors/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-```
-
-**4. Start with Docker Compose:**
-
-```bash
-# Start
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop
-docker-compose down
+  jadofils/watchdog-sentinel:latest
 ```
 
 **Dockerfile:**
