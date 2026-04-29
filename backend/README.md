@@ -101,7 +101,7 @@ git clone https://github.com/jadofils/AmaliTech-DEG-Project-based-challenges.git
 cd AmaliTech-DEG-Project-based-challenges/backend
 
 # 2. Set environment variables
-export DB_PASSWORD=your_db_password
+export DB_PASSWORD=npg_2oASdx9FwIOL
 export PORT=8080
 
 # 3. Build the application
@@ -766,7 +766,7 @@ docker build -t watchdog-sentinel:latest .
 docker run -d \
   --name watchdog-sentinel \
   -p 8080:8080 \
-  -e DB_PASSWORD=your_db_password \
+  -e DB_PASSWORD=npg_2oASdx9FwIOL \
   watchdog-sentinel:latest
 ```
 
@@ -874,8 +874,8 @@ docker pull jadofils/watchdog-sentinel:latest
 docker run -d \
   --name watchdog-sentinel \
   -p 8080:8080 \
-  -e DB_PASSWORD=your_password \
-  -e SPRING_DATASOURCE_URL=jdbc:postgresql://your-db-host/neondb?sslmode=require \
+  -e DB_PASSWORD=npg_2oASdx9FwIOL \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://ep-patient-haze-amytlhn2-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require \
   jadofils/watchdog-sentinel:latest
 ```
 
