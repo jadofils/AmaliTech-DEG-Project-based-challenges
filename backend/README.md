@@ -41,245 +41,29 @@
 
 ## System Architecture
 
-### High-Level Architecture
+![Watchdog Sentinel Sequence Diagram](src/main/resources/static/pulsepack.sequence-diagram/watchdog-api-sequence-diagram.png)
 
-```mermaid
-flowchart TB
-    subgraph "External Systems"
-        Device[Remote Device\nSolar Farm / Weather Station]
-        Admin[Support Engineer\nAdministrator]
-        Webhook[Alert Webhook\nSlack / PagerDuty]
-    end
+**Figure: Watchdog Sentinel — Heartbeat and Alert Sequence Diagram**
 
-    subgraph "Watchdog Sentinel API"
-        direction TB
+This diagram illustrates the complete lifecycle of a monitor from the moment a device sends a heartbeat to the moment an alert is fired when the device goes silent.
 
-        subgraph "API Layer - Port 8080"
-            Controller[Monitor Controller\nREST Endpoints]
-            Validation[Request Validation\nJakarta Validation]
-            Swagger[Swagger UI\nAPI Documentation]
-        end
+**Reading the diagram — Normal Heartbeat Flow (top section):**
 
-        subgraph "Service Layer - Business Logic"
-            MonitorService[Monitor Service\nCRUD Operations]
-            TimerService[Timer Service\nCountdown Management]
-            AlertService[Alert Service\nNotification Dispatcher]
-        end
+A remote device sends `POST /monitors/{id}/heartbeat` to the `MonitorController`. The controller delegates to `MonitorService`, which looks up the monitor in the database via `MonitorRepository`. If the monitor is `ACTIVE`, the last heartbeat timestamp is updated and `TimerService` cancels the existing countdown and schedules a fresh one. The device receives a `200 OK` with the time remaining. This cycle repeats on every heartbeat — as long as the device keeps pinging before the timer hits zero, no alert is ever fired.
 
-        subgraph "Data Layer - Persistence"
-            Repository[Monitor Repository\nSpring Data JPA]
-            DB[(PostgreSQL\nPersistent Storage)]
-        end
+**Reading the diagram — Timer Expiration and Alert Flow (bottom section):**
 
-        subgraph "Background Jobs"
-            TimerScheduler[ScheduledExecutor\nTimer Management]
-            CleanupScheduler[Cleanup Scheduler\nDaily at 2 AM]
-        end
+If the device stops sending heartbeats, the `TimerService` countdown reaches zero. It calls `processExpiredMonitor`, which checks the monitor status in the database. If still `ACTIVE`, the status is updated to `DOWN`, the alert count is incremented, and `AlertService.sendAlert()` is called asynchronously. The alert service applies the circuit breaker logic — if this is the first alert or the cooldown has passed, it logs the alert payload, simulates an email, and optionally fires a webhook. Every action is also written to the `AuditLog` table for traceability.
 
-        subgraph "Cross-Cutting Concerns"
-            ExceptionHandler[Global Exception Handler\nError Responses]
-        end
-    end
+**Layer breakdown:**
 
-    Device --> Controller
-    Admin --> Swagger
-    Admin --> Controller
-    Controller --> Validation
-    Validation --> MonitorService
-    MonitorService --> TimerService
-    MonitorService --> Repository
-    Repository --> DB
-    TimerService --> TimerScheduler
-    TimerService --> AlertService
-    AlertService --> Webhook
-    CleanupScheduler --> DB
-    Controller --> ExceptionHandler
-
-    style Device fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    style Admin fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    style Webhook fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style AlertService fill:#ffebee,stroke:#c62828,stroke-width:2px
-    style DB fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
-    style Controller fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    style MonitorService fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    style TimerService fill:#fff9c4,stroke:#f57f17,stroke-width:2px
-```
-
-### Sequence Diagram: Heartbeat and Alert Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant D as Device
-    participant C as MonitorController
-    participant S as MonitorService
-    participant T as TimerService
-    participant R as MonitorRepository
-    participant A as AlertService
-    participant L as LogFile
-
-    Note over D,L: Normal Heartbeat Flow
-
-    D->>C: POST /api/monitors/{id}/heartbeat
-    activate C
-    C->>S: sendHeartbeat(id)
-    activate S
-    S->>R: findById(id)
-    R-->>S: Monitor Entity
-
-    alt Monitor Status: ACTIVE
-        S->>R: updateLastHeartbeat(id, now())
-        S->>T: resetTimer(id, timeout)
-        activate T
-        T->>T: cancel existing timer
-        T->>T: schedule new timer
-        T-->>S: timer scheduled
-        deactivate T
-        S-->>C: HeartbeatResponse(timeRemaining)
-
-    else Monitor Status: PAUSED
-        S->>R: updateStatus(id, ACTIVE)
-        S->>R: updateLastHeartbeat(id, now())
-        S->>T: startTimer(id, timeout)
-        S-->>C: HeartbeatResponse(resumed=true)
-
-    else Monitor Status: DOWN
-        S-->>C: MonitorExpiredException
-        C-->>D: 410 Gone
-
-    else Monitor Not Found
-        S-->>C: MonitorNotFoundException
-        C-->>D: 404 Not Found
-    end
-
-    deactivate S
-    C-->>D: 200 OK
-    deactivate C
-
-    Note over D,L: Timer Expiration and Alert Flow
-
-    T->>T: timer expires
-    activate T
-    T->>S: processExpiredMonitor(id)
-    activate S
-    S->>R: findById(id)
-    R-->>S: Monitor Entity
-
-    alt Status still ACTIVE
-        S->>R: updateStatus(id, DOWN)
-        S->>R: incrementAlertCount(id)
-        S->>A: sendAlert(monitor)
-        activate A
-        A->>L: log.error("ALERT: Device down")
-        A->>A: buildAlertPayload()
-        A->>L: log.info("Alert dispatched")
-        deactivate A
-        S-->>T: alert sent
-    else Status already changed
-        S-->>T: already alerted
-    end
-
-    deactivate S
-    deactivate T
-```
-
-### State Flow Diagram
-
-```mermaid
-stateDiagram-v2
-    [*] --> Creation: POST /monitors
-
-    Creation --> ACTIVE: Monitor created\nTimer started
-
-    ACTIVE --> ACTIVE: Heartbeat received\nTimer reset
-    ACTIVE --> DOWN: Timer expires\nNo heartbeat
-    ACTIVE --> PAUSED: POST /pause\nManual intervention
-
-    PAUSED --> ACTIVE: Heartbeat received\nAuto-resume
-    PAUSED --> [*]: DELETE /{id}\nManual deletion
-
-    DOWN --> [*]: Auto-cleanup\nAfter 24 hours
-    DOWN --> [*]: DELETE /{id}\nManual deletion
-
-    note right of ACTIVE
-        Timer running
-        Alerts active
-        Status: Monitoring
-    end note
-
-    note right of PAUSED
-        Timer stopped
-        No alerts
-        Status: Maintenance
-    end note
-
-    note right of DOWN
-        Alert sent
-        Needs attention
-        Status: Failed
-    end note
-```
-
-### Database Schema
-
-```mermaid
-erDiagram
-    MONITOR {
-        string id PK "Device ID (unique)"
-        int timeout "Timeout in seconds"
-        string alert_email "Notification email"
-        string alert_webhook "Webhook URL (optional)"
-        enum status "ACTIVE / PAUSED / DOWN"
-        datetime last_heartbeat "Last ping timestamp"
-        datetime alert_triggered_at "Last alert time"
-        int alert_count "Alert counter"
-        datetime created_at "Record creation"
-        datetime updated_at "Record update"
-    }
-
-    AUDIT_LOG {
-        int id PK
-        string monitor_id FK
-        string action "CREATE / HEARTBEAT / ALERT"
-        datetime timestamp
-        string details "JSON metadata"
-    }
-
-    MONITOR ||--o{ AUDIT_LOG : generates
-```
-
-### Deployment Architecture
-
-```mermaid
-flowchart LR
-    subgraph "Docker Host"
-        direction TB
-        subgraph "watchdog-sentinel container"
-            App[Spring Boot App\nPort 8080]
-        end
-    end
-
-    subgraph "External Services"
-        DB[(Neon PostgreSQL\nCloud DB)]
-        Webhook[Alert Webhook\nSlack / Email]
-    end
-
-    subgraph "Client"
-        Device[Remote Device]
-        Admin[Administrator]
-    end
-
-    Device --> App
-    Admin --> App
-    App --> DB
-    App --> Webhook
-
-    style App fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    style DB fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
-    style Webhook fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style Device fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    style Admin fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-```
+| Layer | Components | Responsibility |
+|---|---|---|
+| API Layer | `MonitorController`, `AuditLogController` | Receives HTTP requests, validates input, returns responses |
+| Service Layer | `MonitorService`, `TimerService`, `AlertService`, `AuditService` | Business logic, timer management, alert deduplication |
+| Data Layer | `MonitorRepository`, `AuditLogRepository` | Persists monitors and audit logs to PostgreSQL |
+| Background Jobs | `CleanupScheduler` | Auto-deletes DOWN monitors and old audit logs on a schedule |
+| Cross-Cutting | `GlobalExceptionHandler`, `AsyncConfig` | Error handling, async thread pool |
 
 ---
 
