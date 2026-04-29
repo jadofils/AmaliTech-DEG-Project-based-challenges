@@ -249,54 +249,33 @@ erDiagram
 
 ```mermaid
 flowchart LR
-    subgraph "Load Balancer"
-        LB[Nginx\nPort 80/443]
-    end
-
-    subgraph "Application Cluster"
+    subgraph "Docker Host"
         direction TB
-        App1[Instance 1\nPort 8080]
-        App2[Instance 2\nPort 8080]
-        App3[Instance 3\nPort 8080]
+        subgraph "watchdog-sentinel container"
+            App[Spring Boot App\nPort 8080]
+        end
     end
 
-    subgraph "Data Layer"
-        direction TB
-        DB[(PostgreSQL\nPrimary)]
-        DBReplica[(PostgreSQL\nReplica)]
+    subgraph "External Services"
+        DB[(Neon PostgreSQL\nCloud DB)]
+        Webhook[Alert Webhook\nSlack / Email]
     end
 
-    subgraph "Monitoring"
-        Prom[Prometheus\nMetrics]
-        Graf[Grafana\nDashboards]
+    subgraph "Client"
+        Device[Remote Device]
+        Admin[Administrator]
     end
 
-    subgraph "Alerting"
-        AlertMgr[Alert Manager]
-        Slack[Slack]
-        Email[SMTP]
-    end
+    Device --> App
+    Admin --> App
+    App --> DB
+    App --> Webhook
 
-    LB --> App1
-    LB --> App2
-    LB --> App3
-
-    App1 --> DB
-    App2 --> DB
-    App3 --> DB
-
-    App1 --> DBReplica
-    App2 --> DBReplica
-    App3 --> DBReplica
-
-    App1 --> Prom
-    App2 --> Prom
-    App3 --> Prom
-
-    Prom --> Graf
-    Prom --> AlertMgr
-    AlertMgr --> Slack
-    AlertMgr --> Email
+    style App fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style DB fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    style Webhook fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style Device fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style Admin fill:#e1f5fe,stroke:#01579b,stroke-width:2px
 ```
 
 ---
@@ -682,51 +661,84 @@ java -jar target/watchdog-sentinel-1.0.0.jar
 | `ALERT_WEBHOOK_URL` | Default webhook URL | none |
 | `LOG_LEVEL` | Logging level | `INFO` |
 
-### Kubernetes Deployment
+### Docker Deployment
+
+**1. Build the image:**
+
+```bash
+docker build -t watchdog-sentinel:latest .
+```
+
+**2. Run with Docker:**
+
+```bash
+docker run -d \
+  --name watchdog-sentinel \
+  -p 8080:8080 \
+  -e DB_PASSWORD=your_db_password \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://your-db-host/neondb?sslmode=require \
+  -e PORT=8080 \
+  watchdog-sentinel:latest
+```
+
+**3. Run with Docker Compose:**
+
+Create a `docker-compose.yml` at the project root:
 
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: watchdog-sentinel
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: watchdog-sentinel
-  template:
-    metadata:
-      labels:
-        app: watchdog-sentinel
-    spec:
-      containers:
-      - name: app
-        image: watchdog-sentinel:latest
-        ports:
-        - containerPort: 8080
-        env:
-        - name: SPRING_DATASOURCE_URL
-          valueFrom:
-            secretKeyRef:
-              name: db-secret
-              key: url
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: db-secret
-              key: password
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "200m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /api/monitors/health
-            port: 8080
-          initialDelaySeconds: 30
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: watchdog-sentinel
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_PASSWORD=${DB_PASSWORD}
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+      - PORT=8080
+      - LOG_LEVEL=INFO
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/monitors/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+```
+
+**4. Start with Docker Compose:**
+
+```bash
+# Start
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop
+docker-compose down
+```
+
+**Dockerfile:**
+
+```dockerfile
+FROM eclipse-temurin:21-jdk-alpine AS build
+WORKDIR /app
+COPY mvnw pom.xml ./
+COPY .mvn .mvn
+RUN ./mvnw dependency:go-offline
+COPY src ./src
+RUN ./mvnw clean package -DskipTests
+
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
 ```
 
 ---
