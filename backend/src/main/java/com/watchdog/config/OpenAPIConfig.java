@@ -5,8 +5,10 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.tags.Tag;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import java.util.List;
 
 @Configuration
 public class OpenAPIConfig {
@@ -23,6 +25,10 @@ public class OpenAPIConfig {
                     .email("support@critmon.com"))
                 .license(new License()
                     .name("MIT License")
-                    .url("https://opensource.org/licenses/MIT")));
+                    .url("https://opensource.org/licenses/MIT")))
+            .tags(List.of(
+                new Tag().name("Monitor Management").description("Core monitor endpoints"),
+                new Tag().name("Audit Logs").description("Audit trail endpoints")
+            ));
     }
 }

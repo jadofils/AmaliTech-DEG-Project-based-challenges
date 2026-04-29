@@ -5,26 +5,26 @@ import com.watchdog.dto.request.CreateMonitorRequest;
 import com.watchdog.dto.response.HeartbeatResponse;
 import com.watchdog.dto.response.MonitorResponse;
 import com.watchdog.dto.response.StatusResponse;
-import com.watchdog.exception.MonitorNotFoundException;
 import com.watchdog.exception.MonitorAlreadyExistsException;
 import com.watchdog.exception.MonitorExpiredException;
+import com.watchdog.exception.MonitorNotFoundException;
 import com.watchdog.model.entity.Monitor;
 import com.watchdog.model.enums.AuditAction;
-import com.watchdog.service.AuditService;
-import com.watchdog.repository.MonitorRepository;
 import com.watchdog.model.enums.MonitorStatus;
-import com.watchdog.service.MonitorService;
+import com.watchdog.repository.MonitorRepository;
 import com.watchdog.service.AlertService;
+import com.watchdog.service.AuditService;
+import com.watchdog.service.MonitorService;
 import com.watchdog.service.TimerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -93,10 +93,12 @@ public class MonitorServiceImpl implements MonitorService {
         }
         
         // If paused, auto-resume
+        boolean wasResumed = false;
         if (monitor.getStatus() == MonitorStatus.PAUSED) {
             log.info("Auto-resuming paused monitor for device: {}", deviceId);
             resumeMonitor(deviceId);
-            monitor = monitorRepository.findById(deviceId).get(); // refresh
+            monitor = monitorRepository.findById(deviceId).get();
+            wasResumed = true;
         }
         
         // Update last heartbeat
@@ -118,8 +120,9 @@ public class MonitorServiceImpl implements MonitorService {
         
         return HeartbeatResponse.builder()
             .deviceId(deviceId)
-            .message("Heartbeat received - timer reset")
+            .message(wasResumed ? "Heartbeat received - monitor resumed" : "Heartbeat received - timer reset")
             .timeRemaining((long) timeRemaining)
+            .resumed(wasResumed)
             .timestamp(heartbeatTime)
             .build();
     }

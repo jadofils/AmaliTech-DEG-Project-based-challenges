@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.watchdog.model.entity.Monitor;
 import com.watchdog.model.enums.AuditAction;
-import com.watchdog.repository.AuditLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,7 +28,7 @@ public class AlertService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper()
         .registerModule(new JavaTimeModule());
-    private final AuditLogRepository auditLogRepository;
+    private final AuditService auditService;
 
     @Value("${alert.webhook.enabled:false}")
     private boolean webhookEnabled;
@@ -65,12 +64,7 @@ public class AlertService {
 
         simulateEmailAlert(monitor, alert);
 
-        // Log to audit
-        auditLogRepository.save(com.watchdog.model.entity.AuditLog.builder()
-            .monitorId(monitor.getId())
-            .action(AuditAction.ALERT.name())
-            .details(alert.toString())
-            .build());
+        auditService.log(monitor.getId(), AuditAction.ALERT, alert);
     }
 
     private boolean shouldSendAlert(Monitor monitor) {
