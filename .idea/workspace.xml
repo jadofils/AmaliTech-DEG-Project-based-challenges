@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="e701b4c2-74c6-465a-9792-35650eac7db8" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/backend/Idempotency-gateway/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/Pulse-Check/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/data-engineering/Logistics-auditor/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/data-engineering/The-Market-Gap-Analysis-main/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/DeployReady/.env.example" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/DeployReady/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/DeployReady/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/DeployReady/app/index.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/DeployReady/app/index.test.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/DeployReady/app/package.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/InfraBlueprint/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/InfraBlueprint/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/InfraBlueprint/example.tfvars" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/InfraBlueprint/infra/main.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/InfraBlueprint/infra/outputs.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/InfraBlueprint/infra/variables.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/WatchTower/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/WatchTower/app/docker-compose.yml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/WatchTower/app/notification-service/Dockerfile" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/WatchTower/app/notification-service/index.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/WatchTower/app/notification-service/package.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/WatchTower/app/order-service/Dockerfile" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/WatchTower/app/order-service/index.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/WatchTower/app/order-service/package.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/WatchTower/app/tracking-service/Dockerfile" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/WatchTower/app/tracking-service/index.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dev-ops/WatchTower/app/tracking-service/package.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/fullstack/SupportFlow-Visual-Builder/LICENSE" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/fullstack/SupportFlow-Visual-Builder/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/fullstack/SupportFlow-Visual-Builder/flow_data.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/fullstack/SupportFlow-Visual-Builder/index.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/fullstack/secure-vault/LICENSE" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/fullstack/secure-vault/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/fullstack/secure-vault/data.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/fullstack/secure-vault/index.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/qa/QueueCare/README.md" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="KubernetesApiPersistence"><![CDATA[{}]]></component>
+  <component name="KubernetesApiProvider"><![CDATA[{
+  "isMigrated": true
+}]]></component>
+  <component name="MavenImportPreferences">
+    <option name="generalSettings">
+      <MavenGeneralSettings>
+        <option name="mavenHomeTypeForPersistence" value="WRAPPER" />
+      </MavenGeneralSettings>
+    </option>
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 3,
+  "fromUser": false
+}]]></component>
+  <component name="ProjectId" id="3D1Cysnh4gViMfqOipAwAxD5tk0" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "git-widget-placeholder": "main",
+    "ignore.virus.scanning.warn.message": "true",
+    "kotlin-language-version-configured": "true",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "configurable.group.tools",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RunManager">
+    <configuration name="BackendApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
+      <module name="backend" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="Pulse_Check.backend.BackendApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="e701b4c2-74c6-465a-9792-35650eac7db8" name="Changes" comment="" />
+      <created>1777440446920</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1777440446920</updated>
+      <workItem from="1777440448465" duration="425000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>

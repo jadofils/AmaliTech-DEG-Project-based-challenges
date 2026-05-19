@@ -1,15 +1,16 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: watchdog-sentinel
     ports:
       - "8080:8080"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://ep-patient-haze-amytlhn2-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require
-      - SPRING_DATASOURCE_USERNAME=neondb_owner
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL:-jdbc:postgresql://ep-patient-haze-amytlhn2-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME:-neondb_owner}
       - DB_PASSWORD=${DB_PASSWORD}
       - PORT=8080
-      - LOG_LEVEL=INFO
     env_file:
       - .env
     restart: unless-stopped

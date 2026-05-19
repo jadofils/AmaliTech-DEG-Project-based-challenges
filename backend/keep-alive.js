@@ -4,7 +4,7 @@
 // Run in background with: node keep-alive.js &  (Linux/Mac)
 //                          start /B node keep-alive.js  (Windows)
 
-const HEALTH_URL = "https://amalitech-deg-project-based-challenges-9f5j.onrender.com/api/monitors/health";
+const HEALTH_URL = process.env.HEALTH_URL || "https://amalitech-deg-project-based-challenges-9f5j.onrender.com/api/monitors/health";
 const INTERVAL_MS = 30000; // 30 seconds
 
 let pingCount = 0;

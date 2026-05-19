@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: watchdog-sentinel
+    runtime: docker
+    repo: https://github.com/IshimweConscience/AmaliTech-DEG-Project-based-challenges
+    region: frankfurt
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: DB_PASSWORD
+        sync: false
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        value: neondb_owner
+      - key: JAVA_OPTS
+        value: -Xmx512m -Xms256m
+      - key: PORT
+        value: "8080"
+    healthCheckPath: /api/monitors/health
+    autoDeploy: true
