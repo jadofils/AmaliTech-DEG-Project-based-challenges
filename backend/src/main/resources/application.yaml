@@ -42,6 +42,8 @@ springdoc:
 logging:
   level:
     com.watchdog: DEBUG
-    org.springframework.web: INFO
+    org.springframework.web: DEBUG
+    org.springdoc: DEBUG
+    io.swagger: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
