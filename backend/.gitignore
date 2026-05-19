@@ -34,3 +34,7 @@ build/
 
 ### Environment ###
 .env
+
+### Log files ###
+*.log
+app.log
